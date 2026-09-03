@@ -91,12 +91,16 @@
       const days=span/86400000, tickCount=days<=35?Math.min(5,Math.max(2,Math.round(days/7))):Math.min(6,Math.max(3,Math.round(days/30)));
       let xticks='';
       for(let i=0;i<=tickCount;i++){const t=dStart+span*i/tickCount,x=xScale(t),label=new Date(t).toLocaleDateString(undefined,{month:'short',day:'numeric'});xticks+=`<text x="${x.toFixed(1)}" y="${plotBottom+18}" text-anchor="middle" font-size="10" fill="var(--muted)">${label}</text>`}
+      const seriesPts=series.map(s=>s.points.map(p=>({...p,px:xScale(date(p.x).getTime()),py:yScale(p.y)})));
+      const overlapGroups={};
+      seriesPts.forEach(pts=>pts.forEach(p=>{const key=Math.round(p.px)+':'+Math.round(p.py);(overlapGroups[key]=overlapGroups[key]||[]).push(p)}));
+      Object.values(overlapGroups).forEach(group=>{if(group.length<2)return;const spread=7;group.forEach((p,i)=>{p.ox=(i-(group.length-1)/2)*spread})});
       let seriesSvg='';
-      series.forEach(s=>{
-        if(!s.points.length)return;
-        const pts=s.points.map(p=>({...p,px:xScale(date(p.x).getTime()),py:yScale(p.y)}));
+      series.forEach((s,si)=>{
+        const pts=seriesPts[si];
+        if(!pts.length)return;
         if(pts.length>1){const d=pts.map((p,i)=>(i===0?'M':'L')+p.px.toFixed(1)+','+p.py.toFixed(1)).join(' ');seriesSvg+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`}
-        pts.forEach(p=>{const r=p.r||4;seriesSvg+=`<circle cx="${p.px.toFixed(1)}" cy="${p.py.toFixed(1)}" r="${r}" fill="${s.color}" stroke="var(--card)" stroke-width="1.5"><title>${safe(p.title||'')}</title></circle>`})
+        pts.forEach(p=>{const r=p.r||4,cx=p.px+(p.ox||0);seriesSvg+=`<circle cx="${cx.toFixed(1)}" cy="${p.py.toFixed(1)}" r="${r}" fill="${s.color}" stroke="var(--card)" stroke-width="1.5"><title>${safe(p.title||'')}</title></circle>`})
       });
       return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${grid}${xticks}${seriesSvg}</svg>`;
     }
